@@ -14,22 +14,18 @@ def find_all_solutions(solver: Solver):
         break
     return solutions
 
-# solver = Solver()
-# bk_file = Int('bk_file')
-# bk_rank = Int('bk_rank')
-# SOLVER_VARIABLES.extend([bk_file, bk_rank])
-# solver.add(And(bk_rank >= 0, bk_rank <= 7))
-# # solver.add(bk_rank == 7)
-# solver.add(And(bk_file >= 0, bk_file <= 7))
-
 Piece = DeclareSort('Piece')
 is_white = Function('is_white', Piece, BoolSort())
 
 p = Const('p', Piece)
+q = Const('q', Piece)
 
 # There exists a piece that is white
 s = Solver()
+s.add(is_white(p))
 s.add(Exists([p], is_white(p)))
+s.add(Exists([q], And(is_white(q), q != p)))
+s.add(Exists([q], And(Not(is_white(q)), q != p)))
 print(s.check())  # sat
 
 solutions = find_all_solutions(s)
