@@ -31,35 +31,73 @@ def find_all_solutions(solver: Solver):
 n = 2
 solver = Solver()
 chessboard = [[]]
-celllist = []
-Cell = DeclareSort('Cell')
+
+# Sorts
+Cell, celllist = EnumSort('Cell', [f'c{r}{c}' for r in range(1, n+1) for c in range(1, n+1)])
 Piece = DeclareSort('Piece')
+Color, (White, Black) = EnumSort('Color', ['White', 'Black'])
+colorList = (White, Black)
+PieceType, (Pawn, Knight, Bishop, Rook, Queen, King) = EnumSort('PieceType', ['Pawn', 'Knight', 'Bishop', 'Rook', 'Queen', 'King'])
+typeList = {Pawn:8, Knight:2, Bishop:2, Rook:2, Queen:1, King:1}
+
+# Cell functions
 HasRow = Function('hasRow', Cell, IntSort())
 HasCol = Function('hasCol', Cell, IntSort())
-HasCell = Function('hasCell', Piece, Cell)
 SameRow = Function('sameRow', Cell, Cell, BoolSort())
 SameCol = Function('sameCol', Cell, Cell, BoolSort())
+SameLine = Function('sameLine', Cell, Cell, BoolSort())
+SameForDiag = Function('sameForDiag', Cell, Cell, BoolSort())
+SameBackDiag = Function('sameBackDiag', Cell, Cell, BoolSort())
+SameDiag = Function('sameDiag', Cell, Cell, BoolSort())
+CellHasColor = Function('cellHasColor', Cell, Color)
+
+# Piece functions
+HasType = Function('hasType', Piece, PieceType)
+PieceHasColor = Function('pieceHasColor', Piece, Color)
+IsOnCell = Function('isOnCell', Piece, Cell)
+CanMoveTo = Function('canMoveTo', Piece, Cell, BoolSort())
 
 # Cell conditions
 for row in range(1, n+1):
     chessboard.append([None])
     for col in range(1, n+1):
-        cell = Const(f'c{row}{col}', Cell)
+        cell = celllist[(row-1) * n + col-1]
         chessboard[row].append(cell)
-        celllist.append(cell)
         solver.add(HasRow(cell) == row)
         solver.add(HasCol(cell) == col)
+        if (row + col)%2 == 0:
+            solver.add(CellHasColor(cell) == Black)
+        else:
+            solver.add(CellHasColor(cell) == White)
 c1 = Const('dumcell1', Cell)
 c2 = Const('dumcell2', Cell)
-solver.add(ForAll([c1], And(HasRow(c1) >= 1, HasRow(c1) <= n, HasCol(c1) >= 1, HasCol(c1) <= n)))
-solver.add(ForAll([c1, c2], Implies(c1 != c2, Or(HasRow(c1) != HasRow(c2), HasCol(c1) != HasCol(c2)))))
-solver.add(ForAll([c1, c2], Implies(SameRow(c1, c2), HasRow(c1) == HasRow(c2))))
-solver.add(ForAll([c1, c2], Implies(SameCol(c1, c2), HasCol(c1) == HasCol(c2))))
+# solver.add(ForAll([c1], And(HasRow(c1) >= 1, HasRow(c1) <= n, HasCol(c1) >= 1, HasCol(c1) <= n)))
+# solver.add(ForAll([c1, c2], Implies(c1 != c2, Or(HasRow(c1) != HasRow(c2), HasCol(c1) != HasCol(c2)))))
+solver.add(ForAll([c1, c2], SameRow(c1, c2) == (HasRow(c1) == HasRow(c2))))
+solver.add(ForAll([c1, c2], SameCol(c1, c2) == (HasCol(c1) == HasCol(c2))))
+solver.add(ForAll([c1, c2], SameLine(c1, c2) == Or(SameRow(c1, c2), SameCol(c1, c2))))
+solver.add(ForAll([c1, c2], SameForDiag(c1, c2) == (HasRow(c2) - HasRow(c1) == HasCol(c2) - HasCol(c1))))
+solver.add(ForAll([c1, c2], SameBackDiag(c1, c2) == (HasRow(c2) - HasRow(c1) == HasCol(c1) - HasCol(c2))))
+solver.add(ForAll([c1, c2], SameDiag(c1, c2) == Or(SameForDiag(c1, c2), SameBackDiag(c1, c2))))
+
+# Piece conditions
+p1 = Const('dumpiece1', Piece)
+p2 = Const('dumpiece2', Piece)
+solver.add(ForAll([p1, p2], Implies(p1 != p2, IsOnCell(p1) != IsOnCell(p2))))
+for ty, nb in typeList.items():
+    dumlist = [Const(f'dum{i}', Piece) for i in range(nb+1)]
+    dumcolor = Const('dumcolor', Color)
+    andcond = And([And(HasType(dum) == ty, PieceHasColor(dum) == dumcolor) for dum in dumlist])
+    solver.add(ForAll([dumcolor] + dumlist, Implies(andcond, Not(Distinct(dumlist)))))
 
 # solutions = find_all_solutions(solver)
 # for sol in solutions:
 #     print(sol)
 
-solver.check()
-model = solver.model()
-print(model)
+start = time.time()
+if solver.check() == sat:
+    model = solver.model()
+    print(model)
+else:
+    print("unsatisfiable")
+print("temps :", time.time() - start)
