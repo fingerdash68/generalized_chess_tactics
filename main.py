@@ -28,7 +28,7 @@ def find_all_solutions(solver: Solver):
 # for sol in solutions:
 #     print(sol)
 
-n = 2
+n = 3
 solver = Solver()
 chessboard = [[]]
 
@@ -50,11 +50,20 @@ SameForDiag = Function('sameForDiag', Cell, Cell, BoolSort())
 SameBackDiag = Function('sameBackDiag', Cell, Cell, BoolSort())
 SameDiag = Function('sameDiag', Cell, Cell, BoolSort())
 CellHasColor = Function('cellHasColor', Cell, Color)
+CanSeeBottom = Function('canSeeBottom', Cell, Cell, BoolSort())
+CanSeeTop = Function('canSeeTop', Cell, Cell, BoolSort())
+CanSeeLeft = Function('canSeeLeft', Cell, Cell, BoolSort())
+CanSeeRight = Function('canSeeRight', Cell, Cell, BoolSort())
+CanSeeBottomRight = Function('canSeeBottomRight', Cell, Cell, BoolSort())
+CanSeeBottomLeft = Function('canSeeBottomLeft', Cell, Cell, BoolSort())
+CanSeeTopRight = Function('canSeeTopRight', Cell, Cell, BoolSort())
+CanSeeTopLeft = Function('canSeeTopLeft', Cell, Cell, BoolSort())
+HasPiece = Function('hasPiece', Cell, BoolSort())
 
 # Piece functions
 HasType = Function('hasType', Piece, PieceType)
 PieceHasColor = Function('pieceHasColor', Piece, Color)
-IsOnCell = Function('isOnCell', Piece, Cell)
+OnCell = Function('onCell', Piece, Cell)
 CanMoveTo = Function('canMoveTo', Piece, Cell, BoolSort())
 
 # Cell conditions
@@ -71,6 +80,7 @@ for row in range(1, n+1):
             solver.add(CellHasColor(cell) == White)
 c1 = Const('dumcell1', Cell)
 c2 = Const('dumcell2', Cell)
+c3 = Const('dumcell3', Cell)
 # solver.add(ForAll([c1], And(HasRow(c1) >= 1, HasRow(c1) <= n, HasCol(c1) >= 1, HasCol(c1) <= n)))
 # solver.add(ForAll([c1, c2], Implies(c1 != c2, Or(HasRow(c1) != HasRow(c2), HasCol(c1) != HasCol(c2)))))
 solver.add(ForAll([c1, c2], SameRow(c1, c2) == (HasRow(c1) == HasRow(c2))))
@@ -83,21 +93,34 @@ solver.add(ForAll([c1, c2], SameDiag(c1, c2) == Or(SameForDiag(c1, c2), SameBack
 # Piece conditions
 p1 = Const('dumpiece1', Piece)
 p2 = Const('dumpiece2', Piece)
-solver.add(ForAll([p1, p2], Implies(p1 != p2, IsOnCell(p1) != IsOnCell(p2))))
+solver.add(ForAll([p1, p2], Implies(p1 != p2, OnCell(p1) != OnCell(p2))))
+solver.add(ForAll([c1], Exists([p1], OnCell(p1) == c1) == (HasPiece(c1))))
 for ty, nb in typeList.items():
     dumlist = [Const(f'dum{i}', Piece) for i in range(nb+1)]
     dumcolor = Const('dumcolor', Color)
     andcond = And([And(HasType(dum) == ty, PieceHasColor(dum) == dumcolor) for dum in dumlist])
     solver.add(ForAll([dumcolor] + dumlist, Implies(andcond, Not(Distinct(dumlist)))))
 
+# Piece-cell conditions
+solver.add(ForAll([c1, c2, c3], CanSeeBottom(c1, c2) == And(SameCol(c1, c2), HasRow(c2) < HasRow(c1), Implies(And(SameCol(c1, c3), HasRow(c3) < HasRow(c1), HasRow(c3) > HasRow(c2)), Not(HasPiece(c3))))))
+
+solver.add(ForAll([p1], Or(OnCell(p1) == chessboard[1][1], OnCell(p1) == chessboard[1][2])))
+solver.add(OnCell(p1) == chessboard[1][1])
+solver.add(OnCell(p2) == chessboard[1][2])
+
 # solutions = find_all_solutions(solver)
 # for sol in solutions:
 #     print(sol)
 
 start = time.time()
+
 if solver.check() == sat:
     model = solver.model()
     print(model)
+    for i in range(1, n+1):
+        for j in range(1, n+1):
+            print(f"{i}, {j} : ", model.eval(CanSeeBottom(chessboard[n][1], chessboard[i][j])))
 else:
     print("unsatisfiable")
+
 print("temps :", time.time() - start)
