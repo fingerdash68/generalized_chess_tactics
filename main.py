@@ -104,6 +104,7 @@ for ty, nb in typeList.items():
 # Piece-cell conditions
 solver.add(ForAll([c1, c2, c3], CanSeeBottom(c1, c2) == And(SameCol(c1, c2), HasRow(c2) < HasRow(c1), Implies(And(SameCol(c1, c3), HasRow(c3) < HasRow(c1), HasRow(c3) > HasRow(c2)), Not(HasPiece(c3))))))
 
+# Specific conditions
 solver.add(ForAll([p1], Or(OnCell(p1) == chessboard[1][1], OnCell(p1) == chessboard[1][2])))
 solver.add(OnCell(p1) == chessboard[1][1])
 solver.add(OnCell(p2) == chessboard[1][2])
